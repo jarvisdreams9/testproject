@@ -3,7 +3,7 @@
 
 ### &#x1F4D7; Gist
 
-__GCR__ (or Generic Custom Resource) is not just a generic custom resource acting as a proxy. It lets you __manage AWS resources missing pre defined resource types__ or __existing resources not created via cloudformation__, but also lets you __work with HTTP services__ without having to develop any code. If you like writing programs, it even lets you write pure __Python programs in the cloudformation template__ without having to worry about the whole exception handling, timeouts, retries, logging, signaling jargon. Moreover, it provides __new intrinsic functions__ which help in writing __smarter Cloudformation Templates__ (not kidding) which otherwise would need you to develop a new custom resource everytime. __GCR enables extended use of AWS cloudformation service__ and templates to work with scenarios where you:
+__GCR__ (or Generic Custom Resource) is not just a generic custom resource acting as a proxy. It is an extension to the already powerful AWS Cloudformation Service. It lets you __manage AWS resources missing pre defined resource types__ or __existing resources not created via cloudformation__, but also lets you __work with HTTP services__ without having to develop any code. If you like writing programs, it even lets you write pure __Python programs in the cloudformation template__ without having to worry about the whole exception handling, timeouts, retries, logging, signaling jargon. Moreover, it provides __new intrinsic functions__ which help in writing __programs__ in cloudformation tempalte which otherwise would need you to develop a new custom resource everytime. __GCR enables extended use of AWS cloudformation service__ and templates to work with scenarios where you:
 
 * Want to __manage an existing AWS resource__ created outside cloudformation?
 * Want to __manage an AWS resource not supported in cloudformation?__
@@ -32,29 +32,6 @@ __Summarizing Important Features:__
 * Provides powerful __new intrinsic functions__ like CRH::Type, CRH::Join, CRH::Python which can be used to manipulate property values and outputs. Intrinsic functions can be nested.
 
 __Developed using:__ AWS Cloudformation and Custom Resources, Python 2.7 and boto3 library, AWS Lambda, AWS S3
-
-##### Before reading documentation, Lighten up with a fun conversation about custom resources
-___________
-<sub>`Manager`: Hey we need to use cloudformation for all our infrastructure management and CI/CD requirements. Nothing should be done out of cloudformation templates. We also need to run Jenkins test cases and latency checks on ECS services or beanstalk environment updates and rollback if tests fail. Yes, using cloudformation.
-
-<sub>`Engineer1`: Sure, but cloudformation does not support all AWS services / resources, infact yesterday I tried to pass a JSON to stack parameter and I crossed the 4Kb limit and I am thinking of a work around, and how can I even run Jenkins test cases from cloudformaion template? I know I have Jenkins HTTP apis but how? and latency checks? :sweat:
-
-<sub>`Engineer2`: Yes, I ran into a limitation where we have multiple accounts and I cannot share exports across regions or accounts.
-
-<sub>`Engineer3`: I had to write a custom resource because I wanted to check a condition that NumOfInstances configured for AutoScalingGroup can be evenly distributed across all selected AZs
-
-<sub>`Engineer4`: I am trying to secure all our passwords and secrets used in coudformation resource in S3 with encryption and read them in cloudformation... yeh custom resources!
-
-<sub>`Manager`; Bang! there you go, use custom resources for all use cases that cloudformation does not cater to.
-
-<sub>`Engineer5`: I am trying to write a custom resource to manage our code star projects (no pre-defined resource) for couple of days and I always miss on something and stack just hangs. Its time consuming and not just easy to develop custom resources.
-
-<sub>`Engineers`: :fearful: (We might take an year or more to get there...)
-
-<sub>__Smart Engineer__: Have you guys looked at this __Generic Custom Resource__ on github? We may not have to write custom resources anymore. (opens the project documentation and shows it to engineers)
-
-<sub>`Everyone`: (:relaxed: we just saved a lot of engineers's time. Party!)
-___________
 
 Documentation
 ---
@@ -90,12 +67,10 @@ Documentation
     - [GCR Template Local Execution](#RunLocal)
 - [Complete Configuration Reference](#Configuration)
 - [Design and Architecture](#Architecture)
-  - [Why do we need a Generic Custom Resource?](#WhyGeneric)
-  - [Popularity of Custom Resources](#Popularity)
   - [Flow Construct](#Diagram)
   - [Template processor](#TemplateProcessor)
   - [Validations and Things to watch out for](#Validations)
-  - [Features and Limitations and Workarounds](#FeaturesAndLimitations)
+  - [Limitations and Workarounds](#FeaturesAndLimitations)
 - [Samples](#Samples)
 - [Understanding the code](#UnderstandingTheCode)
 - [Contributing to project](#Contributing)
@@ -393,19 +368,9 @@ Below is a reference to intrinsic functions and their syntax. Use cases and exam
 
 GCR provides __new intrinsic functions__ that can be used within the scope of the GCR properties.
 
-Cloudformation intrinsic functions (Fn::) are powerful but come with certain limitations like:
-* Certain intrinsic functions do not support other intrinsic functions as values
-* Delimiter in Fn::Join cannot be an intrinsic function
-* Values of Fn::FindInMap cannot be intrinsic functions other than FindInMap or Ref
-* You cannot Fn::Split with empty string
-* Mapping keys have name restrictions and only supports 2 levels (top level and secondary level)
-* Conditions cannot perform validations involing greater than less than, range comparisions, case insensitive matches etc.
-
-GCR intrinsic functions are more powerful, dynamic in nature and start with __CRH::__ syntax. You can nest any CRH function within another CRH function and also execute arbitrary python code to evaluate values for the functions.
+GCR intrinsic functions are powerful, dynamic in nature and start with __CRH::__ syntax. You can nest any CRH function within another CRH function and also execute arbitrary python code to evaluate values for the functions.
 
 * __CRH::Type__: This intrinsic function can be used to convert values to specific types. Supported types are integer, float, boolean, none, jsonstr (Object -> JSON String), jsonobj (JSON String -> Object)
-
-This is also very useful in cloudformation custom resources as cloudformation converts all property values to strings before passing it to the custom resource (bug?)
 
 _Syntax_:
 ```
@@ -584,9 +549,6 @@ Resources:
 <a name="Resolver"></a>
 ##### Resolver (Custom::Resolver)
 ____________
-Cloudformation currently has many limitations in terms of using parameters, intrinsic functions, mappings, conditions etc.
-
-Eg: you cannot use parameters inside mappings, you cannot have default values for mappings, does not support greater than / less than comparision operators or case insensitive comparisions etc.
 
 Use cases of Resolvers are to perform arbitrary calculations, complex condition evaluations, validations, or even write python code snippets defining your business logic. More importantly, once the values are resolved, you can make them available for consumption to other pre-defined type resources in the template.
 
@@ -1063,7 +1025,7 @@ __Managing PhysicalResourceId__
 ____________
 When you create a resource, one of most important property for you to define would be PhysicalResourceId. Eg: EC2 Instance ID.
 
-By default, CRH tries to fetch for fiels like 'id' and 'arn' in the output of the API call to determine the PhysicalResourceId. If these fields are not found, CRH will generate a random UUID and use it as physical ID for the entire lifecycle of the resource. However, one situation where you will need to change this behavior is __Replacement Update__. In Replacement Update you would like to create a new resource instead of updating the existing one. This happens when you try to change any immutable property of the resource like "name", "id" etc. To let cloudformation know that you have performed a replacement of the resource instead of updating the existing one, you need to change the physical ID that you send as part of the response, so that cloudformation can detect the replacement and send a 'Delete' event for old resource to be deleted. Check [Replacement Update](#ReplacementUpdate) for more details.
+By default, GCR tries to fetch for fields like 'id' and 'arn' in the output of the API call to determine the PhysicalResourceId. If these fields are not found, CRH will generate a random UUID and use it as physical ID for the entire lifecycle of the resource. However, one situation where you will need to change this behavior is __Replacement Update__. In Replacement Update you would like to create a new resource instead of updating the existing one. This happens when you try to change any immutable property of the resource like "name", "id" etc. To let cloudformation know that you have performed a replacement of the resource instead of updating the existing one, you need to change the physical ID that you send as part of the response, so that cloudformation can detect the replacement and send a 'Delete' event for old resource to be deleted. Check [Replacement Update](#ReplacementUpdate) for more details.
 
 * __PhysicalResourceId__: provide a [search query](#SearchQueries). The result value is used as PhysicalResourceId.
 
@@ -1872,29 +1834,6 @@ Go through the configuration [here](/docs/configuration.md)
 
 <a name="Architecture"></a>
 ## Architecture
-____________
-<a name="WhyGeneric"></a>
-##### Why Generic?
-
-- Because, writing a custom resource for every new requirement even with Ctrl+C and Ctrl+V is __not cake walk__ and after points becomes insanely hard to manage.
-- It needs good understanding of REST API and CRUD operation management to implement a resource successfully.
-- The __overhead of coding__ for handling errors / timeouts / retries signals to cloudformation / hacks to store outputs more than 4KB is huge compared to actual business logic implementation
-- Improper signal handling and make you wait for hours to get back to an update'able state.
-- Managing slightly advanced uses cases like assume roles, cross account data sharing between stacks
-- Recursive lambda invocations to overcome 5 minute limitation etc needs a bit more of work or use of other services like Step functions, CodeBuild, Custom worker running on premises or AWS or other cloud providers.
-- More importantly you need to have an intermediate to advanced programming skills to handle custom resources.
-
-<a name="Popularity"></a>
-##### Custom resources are growing in popularity because of following reasons
-
-1) Cloudformation __does not support__ a pre-defined resource type for the use case or does not support all the properties that are otherwise supported by the corresponding APIs.
-2) Need to manage resources __not created via Cloudformation__ even though they are now dependent on cloudformation stack updates
-3) Use cases to perform __complex calculations__ based on Parameters, Mappings, Conditions which currently have a limited functionality
-4) Need to __extract custom properties__ of existing cloudformation resources / non-cloudformation resources within the template, which are currently not exposed via Ref, GetAtt intrinsic functions
-5) Connecting __outputs/exports__ between stacks for __cross-region__ use cases. Overcome __size and number limits__ on outputs and exports.
-6) Need to __run HTTP /BOTO3 API tests__ during the stack update to confirm if update should proceed / rollback etc
-7) Customize the behavior by adding __wrappers__ around existing pre defined resources.
-8) Connect with external HTTP/API services
 
 <a name="Diagram"></a>
 ##### Flow Construct
@@ -1932,7 +1871,7 @@ GCR validates every input property to ensure it follows the right semantics in P
 
 **Watch Out for Auto Type Conversions**:
 
-Cloudformation by default converts all property values to 'string' before passing it to custom resource. To work around this, GCR converts the data type of all input properties to their normal types using the following logic:
+Cloudformation by default converts all property values to 'string' before passing it to custom resource. I believe this is for security reasons. To work around this, GCR converts the data type of all input properties to their normal types using the following logic:
 
 ```
 MyResource:
@@ -1980,20 +1919,6 @@ MyResource:
     StringValue: GCR
     ...
 ```
-<a name="FeaturesAndLimitations"></a>
-##### Features
-____________
-- Single source of code for all the management aspects of Custom resources eg: signaling, exception handling, data storage and sharing, authentication, authorization, timeouts, retries, logging etc.
-- Extend the functionality of cloudformation by having more fine grained control of all boto3 supported resources
-- Integration with HTTP to make REST API calls and Python Script Interpreter to run arbitrary custom code.
-- Have flexibility to use any APIs in present or in future with all supported arguments and not limited by the custom resource implementation itself, having focus on developing business Logic.
-- Provide flexibility in terms of code reuse, creating variables for repeated patterns, resolve values using `jq` module (json query). Very Rich Intrinsic functions, Operators, which can also be extended using Python code snippets eg: resolving string values with complex combinations of Joins, JQ, python code, and macros
-- Ability to reference values from parent stages, eg: Update can merge arguments from Create, and Delete can merge from Update and Create in desired order.
-- Control over configuration of boto3 / HTTP sessions.
-- Passing Custom IAM Roles to different stages of resource execution.
-- S3 Object Store support to allow storing *huge* output values, and also referencing them in Update, Delete Phases. Since you can control the objects in S3, you can even change the next runtime behavior if you desire to do so.
-- Extends the idea of cloudformation from Infrastructure management tool to CI/CD tool specially for dev/test/staging environments.
-- Making Custom Resources easy to use, open up plenty of possibilities and directions in which cloudformation can be used
 
 ##### Limitations and Workarounds
 ____________
@@ -2002,6 +1927,7 @@ ____________
 - Cloudformation restricts the size of 'Response' from custom resources to 4096 bytes. Which means we cannot send 'Outputs' more than 4096 bytes out of GCR. To workaround this limitation GCR use 'S3Outputs' with S3OutputStore configuration instead.
 
 <a name="Samples"></a>
+
 ## Samples
 ____________
 For more basic/intermediate/advanced samples browse [here](/docs/samples.md)
